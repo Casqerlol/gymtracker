@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lift — Gym Progress Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0a12; --surface: #13131f; --card: #1a1a2e; --border: #2a2a45;
+  --p1: #c4a0f5; --p2: #9b5de5; --p3: #7c3aed;
+  --glow: rgba(155,93,229,0.25); --glow-soft: rgba(181,123,238,0.10);
+  --text: #f0ecff; --muted: #8b87a8; --danger: #f87171; --input-bg: #0f0f1c;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow-x: hidden; }
+
+/* ══════════════════════ HOME SCREEN ══════════════════════ */
+#homeScreen {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--bg);
+  transition: opacity 0.8s cubic-bezier(0.4,0,0.2,1), transform 0.8s cubic-bezier(0.4,0,0.2,1);
+  cursor: pointer; overflow: hidden; padding: 40px 24px;
+}
+#homeScreen.exit { opacity: 0; transform: scale(1.04); pointer-events: none; }
+
+/* Orb layers */
+.orb { position: absolute; border-radius: 50%; pointer-events: none; animation: drift 12s ease-in-out infinite alternate; }
+.orb1 { width: 560px; height: 560px; top: -160px; left: 50%; transform: translateX(-60%); background: radial-gradient(circle, rgba(124,58,237,0.22) 0%, transparent 70%); animation-duration: 14s; }
+.orb2 { width: 380px; height: 380px; bottom: -80px; right: -60px; background: radial-gradient(circle, rgba(155,93,229,0.18) 0%, transparent 70%); animation-duration: 10s; animation-delay: -4s; }
+.orb3 { width: 260px; height: 260px; bottom: 80px; left: -40px; background: radial-gradient(circle, rgba(196,160,245,0.12) 0%, transparent 70%); animation-duration: 16s; animation-delay: -8s; }
+@keyframes drift { from { transform: translate(0,0); } to { transform: translate(30px,20px); } }
+.orb1 { animation-name: driftCenter; }
+@keyframes driftCenter { from { transform: translateX(-60%) translate(0,0); } to { transform: translateX(-60%) translate(20px,30px); } }
+
+/* Stars */
+.stars { position: absolute; inset: 0; pointer-events: none; }
+.star { position: absolute; border-radius: 50%; background: rgba(196,160,245,0.6); animation: twinkle var(--dur,3s) ease-in-out infinite alternate; animation-delay: var(--delay,0s); }
+@keyframes twinkle { from { opacity: 0.2; } to { opacity: 0.9; } }
+
+/* Home content */
+.home-content {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  opacity: 0;
+  animation: homeFadeIn 1.4s 0.3s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+@keyframes homeFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.home-welcome {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(2.4rem, 7vw, 4rem);
+  font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 12px;
+}
+.home-welcome .word-welcome { color: var(--muted); font-weight: 300; }
+.home-welcome .word-boss {
+  display: block;
+  background: linear-gradient(135deg, #e2c4ff 0%, #b57bee 40%, #7c3aed 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+/* Quote */
+.quote-wrap { margin: 28px 0 40px; max-width: 480px; min-height: 80px; display: flex; align-items: center; justify-content: center; }
+.quote-text { font-size: clamp(0.95rem,2.2vw,1.1rem); font-weight: 300; line-height: 1.65; color: var(--muted); font-style: italic; transition: opacity 0.7s ease; }
+.quote-text.fade-out { opacity: 0; }
+.quote-text.fade-in  { opacity: 1; }
+.quote-text.hidden   { opacity: 0; }
+
+/* CTA button */
+.btn-track {
+  position: relative; overflow: hidden;
+  padding: 16px 44px; border-radius: 50px;
+  border: 1.5px solid rgba(196,160,245,0.5);
+  background: rgba(124,58,237,0.18); color: var(--p1);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem; font-weight: 600; letter-spacing: 0.08em;
+  cursor: pointer; transition: border-color 0.28s ease, color 0.28s ease, box-shadow 0.28s ease;
+  backdrop-filter: blur(8px);
+}
+.btn-track::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(124,58,237,0.3), rgba(155,93,229,0.15)); opacity: 0; transition: opacity 0.28s; }
+.btn-track:hover { border-color: var(--p1); color: #fff; box-shadow: 0 12px 40px rgba(124,58,237,0.35); }
+.btn-track:hover::before { opacity: 1; }
+.btn-track span { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; }
+
+.home-hint { margin-top: 20px; font-size: 0.75rem; color: var(--muted); opacity: 0.5; letter-spacing: 0.05em; }
+
+/* Thin line separator */
+.home-line { width: 1px; height: 48px; background: linear-gradient(to bottom, transparent, rgba(196,160,245,0.3), transparent); margin: 0 auto 28px; }
+
+
+/* ══════════════════════ APP ══════════════════════ */
+#app {
+  opacity: 0; transform: scale(0.97);
+  transition: opacity 0.7s 0.2s cubic-bezier(0.4,0,0.2,1), transform 0.7s 0.2s cubic-bezier(0.4,0,0.2,1);
+  pointer-events: none; min-height: 100vh;
+}
+#app.visible { opacity: 1; transform: scale(1); pointer-events: all; }
+
+/* Background glow */
+#app::before {
+  content: ''; position: fixed; top: -200px; left: 50%; transform: translateX(-50%);
+  width: 800px; height: 600px;
+  background: radial-gradient(ellipse, rgba(124,58,237,0.16) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+
+/* ── Header ── */
+header {
+  position: relative; z-index: 10; padding: 22px 36px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border); gap: 16px; flex-wrap: wrap;
+}
+.logo {
+  font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #d8b4fe, #a855f7, #7c3aed);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  cursor: pointer;
+}
+.logo span { font-weight: 300; opacity: 0.7; }
+.logo-back-hint { font-size: 0.65rem; display: block; color: var(--muted); opacity: 0.5; letter-spacing: 0.05em; margin-top: -2px; font-weight: 400; -webkit-text-fill-color: var(--muted); }
+
+/* Week Nav */
+.week-nav {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 7px 12px;
+}
+.week-nav-btn {
+  width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--border);
+  background: transparent; color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
+  transition: all 0.18s; flex-shrink: 0;
+}
+.week-nav-btn:hover { background: var(--glow-soft); color: var(--p1); border-color: var(--p2); }
+.week-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.week-nav-btn:disabled:hover { background: transparent; color: var(--muted); border-color: var(--border); }
+.week-info { text-align: center; min-width: 152px; }
+.week-range { font-size: 0.8rem; font-weight: 600; color: var(--text); font-family: 'Space Grotesk', sans-serif; }
+.week-badge { display: inline-block; margin-top: 3px; font-size: 0.65rem; padding: 1px 7px; border-radius: 10px; background: var(--glow-soft); border: 1px solid var(--p3); color: var(--p1); font-weight: 500; letter-spacing: 0.05em; }
+.week-badge.past { border-color: var(--border); color: var(--muted); background: transparent; }
+
+/* Container */
+.container { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 26px 20px 80px; }
+
+/* Day Tabs */
+.day-tabs { display: flex; gap: 9px; margin-bottom: 26px; flex-wrap: wrap; }
+.day-tab {
+  flex: 1; min-width: 84px; padding: 12px 6px; border-radius: 14px;
+  border: 1.5px solid var(--border); background: var(--surface); color: var(--muted);
+  font-family: 'Space Grotesk', sans-serif; font-size: 0.88rem; font-weight: 500;
+  cursor: pointer; text-align: center; transition: all 0.22s cubic-bezier(0.4,0,0.2,1); user-select: none;
+}
+.day-tab .day-short { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; }
+.day-tab .day-full  { display: block; font-size: 0.92rem; font-weight: 600; }
+.day-tab .dot-row   { display: flex; gap: 4px; justify-content: center; margin-top: 5px; min-height: 5px; }
+.day-tab .dot       { width: 5px; height: 5px; border-radius: 50%; background: var(--border); }
+.day-tab:hover { border-color: var(--p2); color: var(--text); background: var(--card); transform: translateY(-2px); box-shadow: 0 4px 20px var(--glow); }
+.day-tab.active { border-color: var(--p1); background: linear-gradient(145deg,#1e1535,#241a40); color: var(--text); box-shadow: 0 0 0 1px var(--p2), 0 8px 32px var(--glow); transform: translateY(-2px); }
+.day-tab.active .day-short { color: var(--p1); }
+.day-tab.has-data .dot { background: var(--p2); }
+
+/* Panel */
+.day-panel { display: none; }
+.day-panel.active { display: block; }
+.day-panel.animate-in { animation: fadeSlide 0.28s cubic-bezier(0.4,0,0.2,1); }
+@keyframes fadeSlide { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+.panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 10px; flex-wrap: wrap; }
+.panel-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.35rem; font-weight: 700; }
+.panel-title span { background: linear-gradient(135deg,var(--p1),var(--p3)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.btn-add-exercise {
+  display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px;
+  border-radius: 10px; border: 1.5px solid var(--p2); background: transparent;
+  color: var(--p1); font-family: 'Inter', sans-serif; font-size: 0.84rem; font-weight: 500;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-add-exercise:hover { background: var(--glow-soft); box-shadow: 0 0 16px var(--glow); transform: translateY(-1px); }
+
+/* Copy banner */
+.copy-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 11px 14px; border-radius: 12px; border: 1px dashed var(--border);
+  background: var(--surface); margin-bottom: 18px; flex-wrap: wrap;
+}
+.copy-banner p { font-size: 0.8rem; color: var(--muted); }
+.copy-banner p strong { color: var(--text); }
+.btn-copy { padding: 6px 14px; border-radius: 8px; border: 1.5px solid var(--p3); background: var(--glow-soft); color: var(--p1); font-size: 0.78rem; font-weight: 500; cursor: pointer; transition: all 0.18s; white-space: nowrap; }
+.btn-copy:hover { background: rgba(124,58,237,0.2); box-shadow: 0 0 12px var(--glow); }
+
+/* Summary */
+.summary-row { display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
+.summary-chip { padding: 8px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); font-size: 0.76rem; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+.summary-chip strong { color: var(--p1); font-size: 0.92rem; }
+
+/* Exercise Card */
+.exercise-card { background: var(--card); border: 1.5px solid var(--border); border-radius: 16px; margin-bottom: 16px; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; }
+.exercise-card:hover { border-color: #3a3a5c; box-shadow: 0 4px 24px rgba(0,0,0,0.28); }
+.card-header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--border); background: linear-gradient(90deg,#1e1e33,#191929); }
+.exercise-name-input { background: transparent; border: none; outline: none; font-family: 'Space Grotesk', sans-serif; font-size: 0.98rem; font-weight: 600; color: var(--text); width: 55%; transition: color 0.2s; }
+.exercise-name-input::placeholder { color: var(--muted); }
+.exercise-name-input:focus { color: var(--p1); }
+.card-actions { display: flex; gap: 7px; align-items: center; }
+.volume-pill { font-size: 0.72rem; padding: 3px 9px; border-radius: 20px; background: var(--glow-soft); border: 1px solid var(--border); color: var(--muted); font-weight: 500; transition: color 0.2s; }
+.volume-pill.active { color: var(--p1); border-color: var(--p2); }
+.btn-icon { width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; transition: all 0.18s; }
+.btn-icon:hover { background: var(--glow-soft); color: var(--p1); border-color: var(--p2); }
+.btn-icon.danger:hover { background: rgba(248,113,113,0.1); color: var(--danger); border-color: var(--danger); }
+
+/* Sets Table */
+.sets-table-wrap { padding: 12px 16px 16px; overflow-x: auto; }
+.sets-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.sets-table th { text-align: left; padding: 6px 9px; color: var(--muted); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.sets-table td { padding: 6px 9px; border-bottom: 1px solid #1e1e30; vertical-align: middle; }
+.sets-table tr:last-child td { border-bottom: none; }
+.set-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: var(--glow-soft); border: 1px solid var(--border); font-size: 0.72rem; font-weight: 600; color: var(--p1); }
+.set-input { background: var(--input-bg); border: 1.5px solid var(--border); border-radius: 8px; padding: 5px 7px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 0.86rem; width: 80px; text-align: center; outline: none; transition: border-color 0.18s, box-shadow 0.18s; -moz-appearance: textfield; }
+.set-input::-webkit-outer-spin-button, .set-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.set-input:focus { border-color: var(--p2); box-shadow: 0 0 0 3px var(--glow); }
+.set-input.has-value { border-color: #3d2e6e; background: #110e20; }
+.set-complete { width: 19px; height: 19px; border-radius: 5px; border: 1.5px solid var(--border); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.18s; }
+.set-complete.checked { background: linear-gradient(135deg,var(--p2),var(--p3)); border-color: var(--p2); }
+.set-complete.checked::after { content: '✓'; color: white; font-size: 0.6rem; font-weight: 700; }
+.btn-add-set { margin-top: 9px; padding: 5px 12px; border-radius: 7px; border: 1.5px dashed var(--border); background: transparent; color: var(--muted); font-size: 0.76rem; cursor: pointer; transition: all 0.18s; }
+.btn-add-set:hover { border-color: var(--p2); color: var(--p1); background: var(--glow-soft); }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
+.empty-icon { font-size: 2.2rem; margin-bottom: 9px; opacity: 0.5; }
+.empty-state h3 { font-family: 'Space Grotesk', sans-serif; font-size: 0.98rem; margin-bottom: 5px; color: var(--text); opacity: 0.55; }
+.empty-state p { font-size: 0.8rem; }
+
+/* Toast */
+.toast { position: fixed; bottom: 26px; right: 26px; padding: 10px 16px; border-radius: 12px; background: var(--card); border: 1.5px solid var(--p2); color: var(--text); font-size: 0.83rem; box-shadow: 0 8px 32px var(--glow); z-index: 999; opacity: 0; transform: translateY(12px); transition: all 0.25s cubic-bezier(0.4,0,0.2,1); pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+
+@media (max-width: 600px) {
+  header { padding: 14px; }
+  .week-info { min-width: 110px; }
+  .container { padding: 14px 10px 60px; }
+  .day-tab { min-width: 52px; padding: 9px 3px; }
+  .set-input { width: 64px; }
+  .home-welcome { font-size: 2.2rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ HOME SCREEN ══ -->
+<div id="homeScreen">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+  <div class="stars" id="stars"></div>
+
+  <div class="home-content">
+    <h1 class="home-welcome">
+      <span class="word-welcome">Welcome</span>
+      <span class="word-boss">Boss.</span>
+    </h1>
+    <div class="home-line"></div>
+    <div class="quote-wrap">
+      <p class="quote-text hidden" id="quoteText"></p>
+    </div>
+    <button class="btn-track" id="btnTrack">
+      <span>PREVAIL</span>
+    </button>
+    <p class="home-hint">or tap anywhere to continue</p>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+  <header>
+    <div>
+      <div class="logo" id="logoBack">LIFT<span>.track</span></div>
+      <span class="logo-back-hint">tap to go home</span>
+    </div>
+    <div class="week-nav">
+      <button class="week-nav-btn" id="btnPrevWeek">&#8592;</button>
+      <div class="week-info">
+        <div class="week-range" id="weekRange">—</div>
+        <div class="week-badge" id="weekBadge">THIS WEEK</div>
+      </div>
+      <button class="week-nav-btn" id="btnNextWeek">&#8594;</button>
+    </div>
+  </header>
+  <div class="container">
+    <div class="day-tabs" id="dayTabs"></div>
+    <div id="dayPanels"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ QUOTES ══════════════════════════════════════════════════════════════
+const QUOTES = [
+  "Greatness awaits.",
+  "Have patience — you will succeed soon.",
+  "Never lose hope. Just when you think it's over, God will make a way for you.",
+  "Only fear God.",
+  "The only bad workout is the one that didn't happen.",
+  "Your body can stand almost anything. It's your mind you have to convince.",
+  "Success isn't always about greatness. It's about consistency.",
+  "Push yourself because no one else is going to do it for you.",
+  "Great things never came from comfort zones.",
+  "Dream it. Wish it. Do it.",
+  "Don't limit your challenges — challenge your limits.",
+  "It always seems impossible until it's done.",
+  "Discipline is choosing between what you want now and what you want most.",
+  "The pain you feel today will be the strength you feel tomorrow.",
+  "Fall seven times, stand up eight.",
+  "Be stronger than your excuses.",
+  "One more rep. One more set. One more reason to be proud.",
+  "You didn't come this far to only come this far.",
+  "God gives his hardest battles to his strongest soldiers.",
+  "Trust the process.",
+  "Work in silence. Let success make the noise.",
+  "Every champion was once a contender who refused to give up.",
+  "The road to glory is paved with sweat.",
+  "Earn it. Every single day.",
+  "Your future self is watching. Make them proud."
+];
+
+// ══ HOME SCREEN LOGIC ═══════════════════════════════════════════════════
+// Generate stars
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 55; i++) {
+  const s = document.createElement('div');
+  s.className = 'star';
+  const size = Math.random() * 2.4 + 0.6;
+  s.style.cssText = `width:${size}px;height:${size}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--dur:${(Math.random()*3+2).toFixed(1)}s;--delay:-${(Math.random()*5).toFixed(1)}s;`;
+  starsEl.appendChild(s);
+}
+
+// Quote cycling
+const quoteEl = document.getElementById('quoteText');
+let quoteIdx = Math.floor(Math.random() * QUOTES.length);
+let quoteInterval;
+
+function showQuote(text) {
+  quoteEl.classList.remove('hidden','fade-in');
+  quoteEl.classList.add('fade-out');
+  setTimeout(() => {
+    quoteEl.textContent = '"' + text + '"';
+    quoteEl.classList.remove('fade-out');
+    quoteEl.classList.add('fade-in');
+  }, 500);
+}
+
+function cycleQuote() {
+  quoteIdx = (quoteIdx + 1) % QUOTES.length;
+  showQuote(QUOTES[quoteIdx]);
+}
+
+// Initial quote after a short delay
+setTimeout(() => {
+  showQuote(QUOTES[quoteIdx]);
+  quoteInterval = setInterval(cycleQuote, 4800);
+}, 600);
+
+// Launch app
+function launchApp() {
+  clearInterval(quoteInterval);
+  document.getElementById('homeScreen').classList.add('exit');
+  document.getElementById('app').classList.add('visible');
+  setTimeout(() => {
+    document.getElementById('homeScreen').style.display = 'none';
+  }, 900);
+}
+
+document.getElementById('btnTrack').addEventListener('click', e => { e.stopPropagation(); launchApp(); });
+document.getElementById('homeScreen').addEventListener('click', launchApp);
+
+// Logo back to home
+document.getElementById('logoBack').addEventListener('click', () => {
+  const hs = document.getElementById('homeScreen');
+  hs.style.display = '';
+  hs.classList.remove('exit');
+  document.getElementById('app').classList.remove('visible');
+  quoteIdx = Math.floor(Math.random() * QUOTES.length);
+  showQuote(QUOTES[quoteIdx]);
+  quoteInterval = setInterval(cycleQuote, 4800);
+});
+
+// ══ TRACKER LOGIC ═══════════════════════════════════════════════════════
+const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+const SHORT = ['Mon','Tue','Wed','Thu','Fri'];
+
+function getMondayKey(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  return d.toISOString().slice(0,10);
+}
+function mondayDate(key)  { return new Date(key + 'T12:00:00'); }
+function offsetWeekKey(key, weeks) {
+  const d = mondayDate(key); d.setDate(d.getDate() + weeks*7); return getMondayKey(d);
+}
+function formatWeekRange(key) {
+  const mon = mondayDate(key); const fri = new Date(mon); fri.setDate(mon.getDate()+4);
+  return mon.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' – ' +
+    fri.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+const TODAY_MONDAY = getMondayKey(new Date());
+let allWeeks = JSON.parse(localStorage.getItem('lift_weeks') || '{}');
+let currentWeekKey = TODAY_MONDAY;
+let activeDay = (() => { const d = new Date().getDay(); return (d>=1&&d<=5)?DAYS[d-1]:'Monday'; })();
+
+function getWeek(key) {
+  if (!allWeeks[key]) { allWeeks[key] = {days:{}}; DAYS.forEach(d => { allWeeks[key].days[d] = {exercises:[]}; }); }
+  return allWeeks[key];
+}
+function save() { localStorage.setItem('lift_weeks', JSON.stringify(allWeeks)); }
+function uid()  { return Math.random().toString(36).slice(2,9); }
+function newSet()      { return {id:uid(),weight:'',reps:'',done:false}; }
+function newExercise(name='') { return {id:uid(),name,sets:[newSet(),newSet(),newSet()]}; }
+
+function cloneFromPrev() {
+  const prevKey = offsetWeekKey(currentWeekKey,-1);
+  const src = allWeeks[prevKey]; if (!src) return;
+  const dst = getWeek(currentWeekKey);
+  DAYS.forEach(day => {
+    if (dst.days[day].exercises.length===0)
+      dst.days[day].exercises = src.days[day].exercises.map(ex => ({id:uid(),name:ex.name,sets:ex.sets.map(()=>newSet())}));
+  });
+  save(); render(); showToast('Routine copied from last week 💜');
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+function updateWeekNav() {
+  document.getElementById('weekRange').textContent = formatWeekRange(currentWeekKey);
+  const isCurrent = currentWeekKey === TODAY_MONDAY;
+  const badge = document.getElementById('weekBadge');
+  badge.textContent = isCurrent ? 'THIS WEEK' : (currentWeekKey < TODAY_MONDAY ? 'PAST WEEK' : 'FUTURE WEEK');
+  badge.className = 'week-badge' + (isCurrent ? '' : ' past');
+  document.getElementById('btnNextWeek').disabled = currentWeekKey >= TODAY_MONDAY;
+}
+document.getElementById('btnPrevWeek').addEventListener('click', ()=>{ currentWeekKey=offsetWeekKey(currentWeekKey,-1); updateWeekNav(); render(); });
+document.getElementById('btnNextWeek').addEventListener('click', ()=>{ if(currentWeekKey<TODAY_MONDAY){ currentWeekKey=offsetWeekKey(currentWeekKey,1); updateWeekNav(); render(); } });
+
+function buildTabs() {
+  const wrap = document.getElementById('dayTabs'); wrap.innerHTML='';
+  const week = getWeek(currentWeekKey);
+  DAYS.forEach((day,i) => {
+    const ex = week.days[day].exercises;
+    const hasData = ex.some(e=>e.sets.some(s=>s.weight||s.reps));
+    const tab = document.createElement('button');
+    tab.className = 'day-tab'+(day===activeDay?' active':'')+(hasData?' has-data':'');
+    tab.innerHTML = `<span class="day-short">${SHORT[i]}</span><span class="day-full">${day.slice(0,3)}</span><div class="dot-row">${ex.slice(0,4).map(()=>'<span class="dot"></span>').join('')}</div>`;
+    tab.addEventListener('click',()=>{ activeDay=day; render(); setTimeout(()=>{ const p=document.getElementById('panel-'+day); if(p){p.classList.add('animate-in');setTimeout(()=>p.classList.remove('animate-in'),300);} },0); });
+    wrap.appendChild(tab);
+  });
+}
+
+function totalVolume(day) {
+  let vol=0,sets=0;
+  getWeek(currentWeekKey).days[day].exercises.forEach(e=>e.sets.forEach(s=>{ if(s.weight&&s.reps){vol+=parseFloat(s.weight)*parseInt(s.reps);sets++;} }));
+  return {vol:Math.round(vol),sets};
+}
+function prevHasData() {
+  const p = offsetWeekKey(currentWeekKey,-1); if(!allWeeks[p]) return false;
+  return DAYS.some(d=>allWeeks[p].days[d].exercises.length>0);
+}
+function weekIsEmpty() { const w=getWeek(currentWeekKey); return DAYS.every(d=>w.days[d].exercises.length===0); }
+
+function getExVol(ex) { return Math.round(ex.sets.reduce((a,s)=>a+(s.weight&&s.reps?parseFloat(s.weight)*parseInt(s.reps):0),0)); }
+
+function buildPanelHTML(day) {
+  const { exercises } = getWeek(currentWeekKey).days[day];
+  const { vol, sets } = totalVolume(day);
+  const copyBanner = (weekIsEmpty()&&prevHasData()&&day===activeDay)
+    ? `<div class="copy-banner"><p>New week! <strong>Copy your routine</strong> from last week?</p><button class="btn-copy" id="btnCopyLastWeek">Copy last week</button></div>` : '';
+  const summary = vol>0 ? `<div class="summary-row"><div class="summary-chip">🏋️ <strong>${exercises.length}</strong> exercises</div><div class="summary-chip">📋 <strong>${sets}</strong> logged sets</div><div class="summary-chip">⚡ <strong>${vol.toLocaleString()} lb</strong> total volume</div></div>` : '';
+  return `<div class="panel-header"><h2 class="panel-title"><span>${day}</span></h2><button class="btn-add-exercise" data-day="${day}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg> Add Exercise</button></div>${copyBanner}${summary}<div class="exercises-list" id="exList-${day}">${exercises.length===0?`<div class="empty-state"><div class="empty-icon">💪</div><h3>No exercises yet</h3><p>Click "Add Exercise" to start tracking</p></div>`:exercises.map(e=>exerciseCardHTML(e,day)).join('')}</div>`;
+}
+
+function exerciseCardHTML(ex,day) {
+  return `<div class="exercise-card" id="card-${ex.id}"><div class="card-header"><input class="exercise-name-input" type="text" placeholder="Exercise name…" value="${ex.name}" data-day="${day}" data-exid="${ex.id}"><div class="card-actions"><span class="volume-pill ${ex.sets.some(s=>s.weight&&s.reps)?'active':''}" id="vol-${ex.id}">${getExVol(ex)} lb</span><button class="btn-icon danger" data-day="${day}" data-exid="${ex.id}" data-action="remove-ex" title="Remove">✕</button></div></div><div class="sets-table-wrap"><table class="sets-table"><thead><tr><th>Set</th><th>Weight (lb)</th><th>Reps</th><th>Done</th><th></th></tr></thead><tbody id="sets-${ex.id}">${ex.sets.map((s,i)=>setRowHTML(s,i,day,ex.id)).join('')}</tbody></table><button class="btn-add-set" data-day="${day}" data-exid="${ex.id}" data-action="add-set">+ Add Set</button></div></div>`;
+}
+
+function setRowHTML(s,i,day,exid) {
+  return `<tr id="row-${s.id}"><td><span class="set-num">${i+1}</span></td><td><input class="set-input ${s.weight?'has-value':''}" type="text" inputmode="decimal" placeholder="0" value="${s.weight}" data-day="${day}" data-exid="${exid}" data-setid="${s.id}" data-field="weight"></td><td><input class="set-input ${s.reps?'has-value':''}" type="text" inputmode="numeric" placeholder="0" value="${s.reps}" data-day="${day}" data-exid="${exid}" data-setid="${s.id}" data-field="reps"></td><td><div class="set-complete ${s.done?'checked':''}" data-day="${day}" data-exid="${exid}" data-setid="${s.id}" data-action="toggle-done"></div></td><td><button class="btn-icon danger" data-day="${day}" data-exid="${exid}" data-setid="${s.id}" data-action="remove-set">✕</button></td></tr>`;
+}
+
+function rebuildSetNumbers(tbody) {
+  tbody.querySelectorAll('.set-num').forEach((el,i) => el.textContent = i+1);
+}
+
+function buildPanels() {
+  const wrap = document.getElementById('dayPanels'); wrap.innerHTML='';
+  DAYS.forEach(day=>{
+    const panel = document.createElement('div');
+    panel.className = 'day-panel'+(day===activeDay?' active':'');
+    panel.id = 'panel-'+day;
+    panel.innerHTML = buildPanelHTML(day);
+    wrap.appendChild(panel);
+    attachPanelEvents(panel,day);
+  });
+}
+
+function attachPanelEvents(panel,day) {
+  panel.querySelector('.btn-add-exercise')?.addEventListener('click',()=>{
+    const ex = newExercise();
+    getWeek(currentWeekKey).days[day].exercises.push(ex);
+    save();
+    // Insert card directly without full re-render
+    const list = panel.querySelector('.exercises-list');
+    const empty = list.querySelector('.empty-state');
+    if(empty) empty.remove();
+    const div = document.createElement('div');
+    div.innerHTML = exerciseCardHTML(ex, day);
+    const card = div.firstElementChild;
+    list.appendChild(card);
+    // Update tab dots
+    buildTabs();
+  });
+
+  document.getElementById('btnCopyLastWeek')?.addEventListener('click', cloneFromPrev);
+
+  panel.addEventListener('click',e=>{
+    const el = e.target;
+    const action = el.dataset.action||el.closest('[data-action]')?.dataset.action;
+    const target = action?(el.dataset.action?el:el.closest('[data-action]')):null;
+    if(!target) return;
+    const {exid,setid} = target.dataset;
+    const week = getWeek(currentWeekKey);
+
+    if(action==='remove-ex') {
+      week.days[day].exercises = week.days[day].exercises.filter(e=>e.id!==exid);
+      save();
+      const card = document.getElementById('card-'+exid);
+      if(card) card.remove();
+      const list = panel.querySelector('.exercises-list');
+      if(list && !list.children.length) list.innerHTML = `<div class="empty-state"><div class="empty-icon">💪</div><h3>No exercises yet</h3><p>Click "Add Exercise" to start tracking</p></div>`;
+      buildTabs();
+      showToast('Exercise removed');
+    }
+
+    if(action==='add-set') {
+      const ex = week.days[day].exercises.find(e=>e.id===exid);
+      if(!ex) return;
+      const s = newSet();
+      ex.sets.push(s);
+      save();
+      const tbody = document.getElementById('sets-'+exid);
+      if(tbody) {
+        const tr = document.createElement('tr');
+        tr.id = 'row-'+s.id;
+        tr.innerHTML = setRowHTML(s, ex.sets.length-1, day, exid).replace(/^<tr[^>]*>/,'').replace(/<\/tr>$/,'');
+        // rebuild full row properly
+        tbody.insertAdjacentHTML('beforeend', setRowHTML(s, ex.sets.length-1, day, exid).replace('<tr','<tr').replace(/^.*?(<td)/,'<td'));
+        tbody.innerHTML = ex.sets.map((ss,ii)=>setRowHTML(ss,ii,day,exid)).join('');
+      }
+    }
+
+    if(action==='remove-set') {
+      const ex = week.days[day].exercises.find(e=>e.id===exid);
+      if(!ex) return;
+      if(ex.sets.length<=1){ showToast('Need at least 1 set'); return; }
+      ex.sets = ex.sets.filter(s=>s.id!==setid);
+      save();
+      const tbody = document.getElementById('sets-'+exid);
+      if(tbody) tbody.innerHTML = ex.sets.map((ss,ii)=>setRowHTML(ss,ii,day,exid)).join('');
+    }
+
+    if(action==='toggle-done') {
+      const ex = week.days[day].exercises.find(e=>e.id===exid);
+      const set = ex?.sets.find(s=>s.id===setid);
+      if(!set) return;
+      set.done = !set.done;
+      save();
+      // Just toggle the class on the element, no re-render
+      const dot = panel.querySelector(`[data-setid="${setid}"][data-action="toggle-done"]`);
+      if(dot) dot.classList.toggle('checked', set.done);
+      if(set.done) showToast('Set complete! 🔥');
+    }
+  });
+
+  panel.addEventListener('input',e=>{
+    const el=e.target; const week=getWeek(currentWeekKey);
+    if(el.dataset.field) {
+      const {day:d,exid,setid,field}=el.dataset;
+      const ex=week.days[d].exercises.find(e=>e.id===exid);
+      const set=ex?.sets.find(s=>s.id===setid);
+      if(set){set[field]=el.value;el.classList.toggle('has-value',!!el.value);const volEl=document.getElementById('vol-'+exid);if(volEl){const v=getExVol(ex);volEl.textContent=v+' lb';volEl.classList.toggle('active',v>0);}save();}
+    }
+    if(el.classList.contains('exercise-name-input')) {
+      const {day:d,exid}=el.dataset; const ex=week.days[d].exercises.find(e=>e.id===exid); if(ex){ex.name=el.value;save();}
+    }
+  });
+}
+
+function render() { updateWeekNav(); buildTabs(); buildPanels(); }
+
+// Seed default exercises for current week if empty
+const thisWeek = getWeek(TODAY_MONDAY);
+if(DAYS.every(d=>thisWeek.days[d].exercises.length===0)) {
+  [['Monday',['Bench Press','Incline DB Press','Tricep Pushdown']],
+   ['Tuesday',['Squat','Romanian Deadlift','Leg Press']],
+   ['Wednesday',['Pull-Up','Barbell Row','Bicep Curl']],
+   ['Thursday',['Overhead Press','Lateral Raise','Face Pull']],
+   ['Friday',['Deadlift','Hip Thrust','Hamstring Curl']]
+  ].forEach(([day,names])=>names.forEach(n=>thisWeek.days[day].exercises.push(newExercise(n))));
+  save();
+}
+
+render();
+</script>
+</body>
+</html>
